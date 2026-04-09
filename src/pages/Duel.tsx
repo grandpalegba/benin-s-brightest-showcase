@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { talents } from "@/data/talents";
-import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { Play } from "lucide-react";
 
 const categories = [...new Set(talents.map((t) => t.category))];
 
@@ -20,30 +20,66 @@ const Duel = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sliderValue, setSliderValue] = useState(50);
   const [totalPoints, setTotalPoints] = useState(1250);
-  const [validated, setValidated] = useState(false);
+  const [validatedSet, setValidatedSet] = useState<Set<number>>(new Set());
+  const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   const pair = pairs[currentIndex];
   if (!pair) return null;
 
+  const isValidated = validatedSet.has(currentIndex);
   const leftPercent = sliderValue;
   const rightPercent = 100 - sliderValue;
 
+  const goTo = useCallback(
+    (dir: -1 | 1) => {
+      setSwipeDir(dir === 1 ? "left" : "right");
+      setTimeout(() => {
+        const next = (currentIndex + dir + pairs.length) % pairs.length;
+        setCurrentIndex(next);
+        if (!validatedSet.has(next)) {
+          setSliderValue(50);
+        }
+        setSwipeDir(null);
+      }, 250);
+    },
+    [currentIndex, pairs.length, validatedSet],
+  );
+
   const handleValidate = () => {
-    setValidated(true);
+    if (isValidated) return;
+    setValidatedSet((prev) => new Set(prev).add(currentIndex));
     setTotalPoints((p) => p + Math.abs(sliderValue - 50) * 10);
+    // Auto-advance after validation
+    setTimeout(() => goTo(1), 600);
   };
 
-  const goTo = (dir: -1 | 1) => {
-    const next = currentIndex + dir;
-    if (next >= 0 && next < pairs.length) {
-      setCurrentIndex(next);
-      setSliderValue(50);
-      setValidated(false);
-    }
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
   };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const diff = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(diff) > 60) {
+      goTo(diff < 0 ? 1 : -1);
+    }
+    setTouchStartX(null);
+  };
+
+  const swipeClass =
+    swipeDir === "left"
+      ? "translate-x-[-100%] opacity-0"
+      : swipeDir === "right"
+        ? "translate-x-[100%] opacity-0"
+        : "translate-x-0 opacity-100";
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center text-[#1a1c1c]">
+    <div
+      className="min-h-screen bg-white flex flex-col items-center text-[#1a1c1c] select-none overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Category pill */}
       <div className="mt-8 mb-10 md:mb-16">
         <span className="bg-[#1a1c1c] text-white px-8 py-3 md:px-12 md:py-4 rounded-full font-display text-sm md:text-lg font-bold tracking-[0.2em] uppercase">
@@ -51,46 +87,19 @@ const Duel = () => {
         </span>
       </div>
 
-      {/* Navigation arrows + Duel grid */}
-      <div className="flex items-center w-full max-w-5xl px-4 mb-8 md:mb-12">
-        <button
-          onClick={() => goTo(-1)}
-          disabled={currentIndex === 0}
-          className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-20 transition-opacity"
-          aria-label="Duel précédent"
-        >
-          <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
-        </button>
-
+      {/* Swipeable duel area */}
+      <div
+        className={`flex items-center w-full max-w-5xl px-4 mb-8 md:mb-12 transition-all duration-250 ease-out ${swipeClass}`}
+      >
         <div className="flex-1 grid grid-cols-2 gap-4 md:gap-10">
-          {/* Candidate 1 */}
-          <CandidateCard
-            talent={pair.talent1}
-            percent={leftPercent}
-            dotColor="#006b3f"
-          />
-          {/* Candidate 2 */}
-          <CandidateCard
-            talent={pair.talent2}
-            percent={rightPercent}
-            dotColor="#ffd31a"
-          />
+          <CandidateCard talent={pair.talent1} percent={leftPercent} dotColor="#006b3f" />
+          <CandidateCard talent={pair.talent2} percent={rightPercent} dotColor="#ffd31a" />
         </div>
-
-        <button
-          onClick={() => goTo(1)}
-          disabled={currentIndex === pairs.length - 1}
-          className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-20 transition-opacity"
-          aria-label="Duel suivant"
-        >
-          <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
-        </button>
       </div>
 
       {/* Voting track */}
       <div className="w-full max-w-lg md:max-w-2xl px-6 mb-6">
         <div className="relative w-full h-6 md:h-8 rounded-full overflow-visible">
-          {/* Green + Yellow track */}
           <div className="absolute inset-0 flex rounded-full overflow-hidden">
             <div
               className="h-full transition-all duration-200"
@@ -101,14 +110,13 @@ const Duel = () => {
               style={{ width: `${rightPercent}%`, backgroundColor: "#ffd31a" }}
             />
           </div>
-          {/* Red cursor */}
           <input
             type="range"
             min={0}
             max={100}
             value={sliderValue}
-            onChange={(e) => !validated && setSliderValue(Number(e.target.value))}
-            disabled={validated}
+            onChange={(e) => !isValidated && setSliderValue(Number(e.target.value))}
+            disabled={isValidated}
             className="duel-slider absolute inset-0 w-full h-full appearance-none bg-transparent cursor-pointer z-10 disabled:cursor-default"
           />
         </div>
@@ -121,17 +129,28 @@ const Duel = () => {
         </h3>
         <button
           onClick={handleValidate}
-          disabled={validated}
+          disabled={isValidated}
           className="bg-[#1a1c1c] text-white px-12 py-4 md:px-20 md:py-5 rounded-full font-display text-base md:text-xl font-bold tracking-widest uppercase hover:bg-zinc-700 transition-colors active:scale-95 duration-200 disabled:opacity-50"
         >
-          {validated ? "VALIDÉ ✓" : "JE VALIDE"}
+          {isValidated ? "DÉJÀ ÉVALUÉ ✓" : "JE VALIDE"}
         </button>
       </div>
 
-      {/* Duel counter */}
-      <p className="text-sm text-gray-400 mb-8 font-sans">
+      {/* Duel counter + swipe hint */}
+      <p className="text-sm text-gray-400 mb-4 font-sans">
         Duel {currentIndex + 1} / {pairs.length}
       </p>
+      <p className="text-xs text-gray-300 mb-8 font-sans">← Swipez ou cliquez pour naviguer →</p>
+
+      {/* Tap zones for desktop navigation */}
+      <div
+        className="fixed left-0 top-0 h-full w-16 cursor-pointer z-20"
+        onClick={() => goTo(-1)}
+      />
+      <div
+        className="fixed right-0 top-0 h-full w-16 cursor-pointer z-20"
+        onClick={() => goTo(1)}
+      />
 
       {/* Custom slider styles */}
       <style>{`
@@ -155,21 +174,11 @@ const Duel = () => {
           box-shadow: 0 2px 8px rgba(0,0,0,0.2);
           cursor: pointer;
         }
-        .duel-slider::-webkit-slider-runnable-track {
-          background: transparent;
-        }
-        .duel-slider::-moz-range-track {
-          background: transparent;
-        }
+        .duel-slider::-webkit-slider-runnable-track { background: transparent; }
+        .duel-slider::-moz-range-track { background: transparent; }
         @media (min-width: 768px) {
-          .duel-slider::-webkit-slider-thumb {
-            width: 36px;
-            height: 36px;
-          }
-          .duel-slider::-moz-range-thumb {
-            width: 36px;
-            height: 36px;
-          }
+          .duel-slider::-webkit-slider-thumb { width: 36px; height: 36px; }
+          .duel-slider::-moz-range-thumb { width: 36px; height: 36px; }
         }
       `}</style>
     </div>
@@ -201,17 +210,12 @@ const CandidateCard = ({
       </div>
     </div>
     <div className="flex items-center gap-2 mb-1">
-      <span
-        className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full"
-        style={{ backgroundColor: dotColor }}
-      />
+      <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full" style={{ backgroundColor: dotColor }} />
       <h2 className="font-display font-bold text-lg md:text-2xl tracking-wider uppercase">
         {talent.name.split(" ")[0]}
       </h2>
     </div>
-    <div className="font-display text-2xl md:text-4xl font-extrabold">
-      {Math.round(percent)}%
-    </div>
+    <div className="font-display text-2xl md:text-4xl font-extrabold">{Math.round(percent)}%</div>
   </div>
 );
 
