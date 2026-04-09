@@ -46,8 +46,13 @@ const Duel = () => {
     if (isValidated) return;
     setValidatedSet((prev) => new Set(prev).add(currentIndex));
     setTotalPoints((p) => p + Math.abs(sliderValue - 50) * 10);
-    // Auto-advance after validation
-    setTimeout(() => goTo(1), 600);
+    setTimeout(() => {
+      goTo(1);
+      // Reset slider for next duel if not validated
+      setTimeout(() => {
+        setSliderValue(50);
+      }, 260);
+    }, 600);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
