@@ -190,7 +190,7 @@ const CandidateCard = ({
       <div className="w-full h-full rounded-2xl overflow-hidden relative">
         <img
           alt={talent.name}
-          className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
+          className="w-full h-full object-cover transition-all duration-700"
           src={talent.image}
         />
         <div className="absolute inset-0 flex items-center justify-center">

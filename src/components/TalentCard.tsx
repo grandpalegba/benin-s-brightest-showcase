@@ -24,8 +24,8 @@ const TalentCard = ({ talent }: TalentCardProps) => {
         <h3 className="font-display text-lg font-semibold text-primary">
           {talent.name}
         </h3>
-        <p className="mt-1 font-sans text-sm text-muted-foreground">
-          {talent.description}
+        <p className="mt-1 font-sans text-sm text-muted-foreground line-clamp-3">
+          {talent.bio}
         </p>
         <p className="mt-2 font-sans text-xs italic text-primary/70">
           « {talent.quote} »
