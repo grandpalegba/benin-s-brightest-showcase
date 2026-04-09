@@ -24,27 +24,23 @@ const Duel = () => {
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
+  const goTo = useCallback(
+    (dir: -1 | 1) => {
+      setSwipeDir(dir === 1 ? "left" : "right");
+      setTimeout(() => {
+        setCurrentIndex((prev) => (prev + dir + pairs.length) % pairs.length);
+        setSwipeDir(null);
+      }, 250);
+    },
+    [pairs.length],
+  );
+
   const pair = pairs[currentIndex];
   if (!pair) return null;
 
   const isValidated = validatedSet.has(currentIndex);
   const leftPercent = sliderValue;
   const rightPercent = 100 - sliderValue;
-
-  const goTo = useCallback(
-    (dir: -1 | 1) => {
-      setSwipeDir(dir === 1 ? "left" : "right");
-      setTimeout(() => {
-        const next = (currentIndex + dir + pairs.length) % pairs.length;
-        setCurrentIndex(next);
-        if (!validatedSet.has(next)) {
-          setSliderValue(50);
-        }
-        setSwipeDir(null);
-      }, 250);
-    },
-    [currentIndex, pairs.length, validatedSet],
-  );
 
   const handleValidate = () => {
     if (isValidated) return;
