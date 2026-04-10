@@ -4,6 +4,15 @@ import { Play } from "lucide-react";
 
 const categories = [...new Set(talents.map((t) => t.category))];
 
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 const getDuelPairs = () => {
   const pairs: { category: string; talent1: typeof talents[0]; talent2: typeof talents[0] }[] = [];
   categories.forEach((cat) => {
@@ -14,27 +23,29 @@ const getDuelPairs = () => {
       }
     }
   });
-  return pairs;
+  return shuffleArray(pairs);
 };
 
 const Duel = () => {
   const pairs = useMemo(getDuelPairs, []);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sliderValue, setSliderValue] = useState(50);
-  const [totalPoints, setTotalPoints] = useState(1250);
   const [validatedSet, setValidatedSet] = useState<Set<number>>(new Set());
   const [swipeDir, setSwipeDir] = useState<"left" | "right" | null>(null);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   const goTo = useCallback(
     (dir: -1 | 1) => {
+      // Auto-validate current duel if not yet validated
+      setValidatedSet((prev) => new Set(prev).add(currentIndex));
       setSwipeDir(dir === 1 ? "left" : "right");
       setTimeout(() => {
         setCurrentIndex((prev) => (prev + dir + pairs.length) % pairs.length);
+        setSliderValue(50);
         setSwipeDir(null);
       }, 250);
     },
-    [pairs.length],
+    [pairs.length, currentIndex],
   );
 
   const pair = pairs[currentIndex];
@@ -47,14 +58,9 @@ const Duel = () => {
   const handleValidate = () => {
     if (isValidated) return;
     setValidatedSet((prev) => new Set(prev).add(currentIndex));
-    setTotalPoints((p) => p + Math.abs(sliderValue - 50) * 10);
     setTimeout(() => {
       goTo(1);
-      // Reset slider for next duel if not validated
-      setTimeout(() => {
-        setSliderValue(50);
-      }, 260);
-    }, 600);
+    }, 400);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -125,11 +131,8 @@ const Duel = () => {
         </div>
       </div>
 
-      {/* Points */}
+      {/* Validate button */}
       <div className="flex flex-col items-center gap-4 mb-10">
-        <h3 className="font-display text-4xl md:text-6xl font-extrabold tracking-tight">
-          <span className="tracking-widest">{totalPoints}</span> PTS
-        </h3>
         <button
           onClick={handleValidate}
           disabled={isValidated}
@@ -139,11 +142,8 @@ const Duel = () => {
         </button>
       </div>
 
-      {/* Duel counter + swipe hint */}
-      <p className="text-sm text-gray-400 mb-4 font-sans">
-        Duel {currentIndex + 1} / {pairs.length}
-      </p>
-      <p className="text-xs text-gray-300 mb-8 font-sans">← Swipez ou cliquez pour naviguer →</p>
+      {/* Swipe hint */}
+      <p className="text-xs text-gray-300 mb-8 font-sans">← Swipez pour naviguer →</p>
 
       {/* Tap zones for desktop navigation */}
       <div
