@@ -8,8 +8,10 @@ const getDuelPairs = () => {
   const pairs: { category: string; talent1: typeof talents[0]; talent2: typeof talents[0] }[] = [];
   categories.forEach((cat) => {
     const catTalents = talents.filter((t) => t.category === cat);
-    if (catTalents.length >= 2) {
-      pairs.push({ category: cat, talent1: catTalents[0], talent2: catTalents[1] });
+    for (let i = 0; i < catTalents.length; i++) {
+      for (let j = i + 1; j < catTalents.length; j++) {
+        pairs.push({ category: cat, talent1: catTalents[i], talent2: catTalents[j] });
+      }
     }
   });
   return pairs;
